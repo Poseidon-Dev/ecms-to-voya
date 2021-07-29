@@ -2,6 +2,7 @@ import pyodbc
 import config
 import pandas as pd
 
+# Connect to eCMS
 erp_conn = pyodbc.connect(f'DSN={config.ERP_HOST}; UID={config.ERP_UID}; PWD={config.ERP_PWD}')
 sql = """
         SELECT 
@@ -42,60 +43,143 @@ sql = """
         AND MED.DEDNUMBER IN (401, 402, 410, 411)
         """
 
-quarter_filter_input = input('Enter a Year and Quarter(2020Q1): ')
+# Quarterly Query
+quarter_filter_input = '2013Q1'
+if not quarter_filter_input:
+    quarter_filter_input = input('Enter a Year and Period(2020Q1): ')
 
+# Write SQL Return to datafra,e
 data = pd.read_sql(sql, erp_conn)
-columns = [
-    'PRTMSTID', 'Record_Type', 'EmployerID', 'Cycle', 'SSN',
-    'Location_Code', 'LastName', 'FirstName', 'MI', 'Addr1', 'Addr2',
-    'City', 'State', 'Zip', 'Employee_Status', 'Birthdate', 'Hire_Date',
-    'Term_Date', 'Adj_Hire_Date', 'EmployeeNo', 'Check_Date', 'TotHrs', 
-    'Ded_Amt', 'Ded_no',
-    ]
-group = [
-    'PRTMSTID', 'Record_Type', 'EmployerID', 'Cycle', 'SSN', 'Location_Code',
-    'LastName', 'FirstName', 'MI', 'Addr1', 'Addr2', 'City', 'State', 'Zip',
-    'Employee_Status', 'Birthdate', 'Hire_Date', 'Term_Date', 'Adj_Hire_Date',
-    'EmployeeNo', 'Quarter'
-    ]
 
+# Rename all Columns
+columns = [
+    'PRTMSTID', 'RecordType', 'EmployerID', 'PayrollCycle', 'SSN',
+    'LocationCode', 'LastName', 'FirstName', 'MI', 'Addr1', 'Addr2',
+    'City', 'State', 'Zip', 'EmployeeStatusCode', 'BirthDate', 'HireDate',
+    'TermDate', 'AdjHireDate', 'EmployeeNo', 'CheckDate', 'TotHrs', 
+    'DedAmt', 'DedNo',
+    ]
 data.columns=columns
-data['Quarter'] = pd.PeriodIndex(pd.to_datetime(data['Check_Date']), freq='Q')
+
+# Create Quarterly Periods from CheckDate
+data['Period'] = pd.PeriodIndex(pd.to_datetime(data['CheckDate']), freq='Q')
+
+group = [
+    'PRTMSTID', 'RecordType', 'EmployerID', 'PayrollCycle', 'SSN', 'LocationCode',
+    'LastName', 'FirstName', 'MI', 'Addr1', 'Addr2', 'City', 'State', 'Zip',
+    'EmployeeStatusCode', 'BirthDate', 'HireDate', 'TermDate', 'AdjHireDate',
+    'EmployeeNo', 'Period'
+    ]
 
 # Filter main set by quarter
-quarter_filter = data['Quarter'] == quarter_filter_input
-data_test = data[quarter_filter]
+quarter_filter = data['Period'] == quarter_filter_input
+voya_df = data[quarter_filter]
 
-# Create subset that has deductions per quarter from main filtered set
-data_subset = data_test[['PRTMSTID', 'Quarter', 'Ded_no', 'Ded_Amt']]
-deduction_subset = data_subset.groupby(['PRTMSTID', 'Quarter', 'Ded_no']).transform('sum')
+# Create subset that has deductions per quarter from main filtered set and add column to main df
+data_subset = voya_df[['PRTMSTID', 'Period', 'DedNo', 'DedAmt']]
+deduction_subset = data_subset.groupby(['PRTMSTID', 'Period', 'DedNo']).transform('sum')
+voya_df['ContributionAmount'] = deduction_subset
 
-# Add deduction amounts up per person per quarter and add column to main filtered set
-data_test['DeductionAmount'] = deduction_subset
 
-# Create a subset that has hours per quarter from main filtered set
-data_subset = data_test[['PRTMSTID', 'Quarter', 'Ded_no', 'TotHrs']]
+# Create a subset that has hours per quarter from main filtered set and add column to main df
+data_subset = voya_df[['PRTMSTID', 'Period', 'DedNo', 'TotHrs']]
+data_subset['SubTotal'] = data_subset.groupby(['PRTMSTID', 'Period', 'DedNo', ]).transform('sum')
 
-# Get total hours for each deduction per employee
-data_subset['SubTotal'] = data_subset.groupby(['PRTMSTID', 'Quarter', 'Ded_no', ]).transform('sum')
-
-# Get max value of hours for deduction per quarter (giving total hours worked)
-data_subset = data_subset[['PRTMSTID', 'Quarter', 'SubTotal']]
-data_test['PeriodHours'] = data_subset.groupby(['PRTMSTID', 'Quarter']).transform('max')
+# Get max value of hours for deduction per quarter (giving total hours worked) and add column to main df
+data_subset = data_subset[['PRTMSTID', 'Period', 'SubTotal']]
+voya_df['PeriodHours'] = data_subset.groupby(['PRTMSTID', 'Period']).transform('max')
 
 # Remove extra columns that add unneeded detail
-del data_test['Ded_Amt']
-del data_test['Check_Date']
-del data_test['TotHrs']
+del voya_df['DedAmt']
+del voya_df['CheckDate']
+del voya_df['TotHrs']
 
 # Drop duplicates
-data_test = data_test.drop_duplicates()
+voya_df = voya_df.drop_duplicates()
 
-# Wide to long main filtered dataset to move deduction numbers to own columns with deduction amount as value
-index = ['PRTMSTID', 'Record_Type', 'EmployerID', 'Cycle', 'SSN', 'Location_Code', 'LastName', 'FirstName', 'MI',
-'Addr1', 'Addr2', 'City', 'State', 'Zip', 'Employee_Status', 'Birthdate', 'Hire_Date', 'Term_Date', 'Adj_Hire_Date',
-'EmployeeNo', 'Quarter', 'PeriodHours']
-data_test = data_test.pivot_table(index=index, columns='Ded_no', values='DeductionAmount', fill_value=0)
+# Refactor to Match Win8 Voya Output
+# Add Empty Columns
+voya_df['Zip2'] = ''
+voya_df['YTDHours'] = ''
+voya_df['AnnHours'] = ''
+voya_df['SourceCode1'] = ''
+voya_df['ContAmount1'] = 0
+voya_df['SourceCode2'] = ''
+voya_df['ContAmount2'] = 0
+voya_df['SourceCode3'] = ''
+voya_df['ContAmount3'] = 0
+voya_df['SourceCode4'] = ''
+voya_df['ContAmount4'] = 0
+voya_df['SourceCode5'] = ''
+voya_df['ContAmount5'] = 0
+voya_df['SourceCode6'] = ''
+voya_df['ContAmount6'] = 0
+voya_df['LoanNumber1'] = ''
+voya_df['LoanPmt1'] = 0
+voya_df['LoanNumber2'] = ''
+voya_df['LoanPmt2'] = 0
+voya_df['LoanNumber3'] = ''
+voya_df['LoanPmt3'] = 0
+voya_df['LoanNumber4'] = ''
+voya_df['LoanPmt4'] = 0
+voya_df['LoanNumber5'] = ''
+voya_df['LoanPmt5'] = 0
+voya_df['LoanNumber6'] = ''
+voya_df['LoanPmt6'] = 0
+voya_df['Reserved'] = ''
+voya_df['EmpEligibility'] = ''
 
-# Fill NaN with 0
-print(data_test.head(50))
+# Re-order dataframe to match specifics
+win38_output = [
+    'PRTMSTID', 'RecordType', 'EmployerID', 'PayrollCycle', 'Period', 'SSN', 'LocationCode', 'LastName', 'FirstName', 'MI', 'Addr1', 
+    'Addr2', 'City', 'State', 'Zip', 'Zip2', 'EmployeeStatusCode', 'BirthDate', 'HireDate', 'TermDate', 'AdjHireDate', 'YTDHours', 
+    'PeriodHours', 'AnnHours', 'DedNo', 'ContributionAmount', 'SourceCode1', 'ContAmount1', 'SourceCode2', 'ContAmount2', 
+    'SourceCode3', 'ContAmount3', 'SourceCode4', 'ContAmount4', 'SourceCode5', 'ContAmount5', 'SourceCode6', 'ContAmount6', 'LoanNumber1',
+    'LoanPmt1', 'LoanNumber2', 'LoanPmt2', 'LoanNumber3', 'LoanPmt3', 'LoanNumber4', 'LoanPmt4', 'LoanNumber5', 'LoanPmt5', 'LoanNumber6', 
+    'LoanPmt6', 'Reserved', 'EmpEligibility', 'EmployeeNo', ]
+
+# Update dataframe to have win38 columns    
+voya_df = voya_df[win38_output]
+
+# Fill appropriate columns with static data
+voya_df['SourceCode1'] = '401'
+voya_df['SourceCode2'] = '402'
+voya_df['LoanNumber1'] = '410'
+voya_df['LoanNumber2'] = '411'
+
+# Take contribution amounts of each deduction and add then to their respective columns
+voya_df['ContAmount1'] = round(voya_df.loc[voya_df['DedNo'] == '401']['ContributionAmount'], 2)
+voya_df['ContAmount2'] = round(voya_df.loc[voya_df['DedNo'] == '402']['ContributionAmount'], 2)
+voya_df['LoanPmt1'] = round(voya_df.loc[voya_df['DedNo'] == '410']['ContributionAmount'], 2)
+voya_df['LoanPmt2'] = round(voya_df.loc[voya_df['DedNo'] == '411']['ContributionAmount'], 2)
+
+# Delete extra detail columns
+del voya_df['DedNo']
+del voya_df['ContributionAmount']
+
+# Create subset that has Contribution Amount 1 per quarter from main filtered set
+data_subset = voya_df[['PRTMSTID', 'Period', 'ContAmount1']]
+const1_subset = data_subset.groupby(['PRTMSTID', 'Period']).transform('sum')
+voya_df['ContAmount1'] = const1_subset
+
+# Create subset that has Contribution Amount 2 per quarter from main filtered set
+data_subset = voya_df[['PRTMSTID', 'Period', 'ContAmount2']]
+const2_subset = data_subset.groupby(['PRTMSTID', 'Period']).transform('sum')
+voya_df['ContAmount2'] = const2_subset
+
+# Create subset that has LoanPmt1  per quarter from main filtered set
+data_subset = voya_df[['PRTMSTID', 'Period', 'LoanPmt1']]
+LoanPmt1 = data_subset.groupby(['PRTMSTID', 'Period']).transform('sum')
+voya_df['LoanPmt1'] = LoanPmt1
+
+# Create subset that has LoanPmt2  per quarter from main filtered set
+data_subset = voya_df[['PRTMSTID', 'Period', 'LoanPmt2']]
+LoanPmt2 = data_subset.groupby(['PRTMSTID', 'Period']).transform('sum')
+voya_df['LoanPmt2'] = LoanPmt2
+
+# Delete duplicate rows
+voya_df = voya_df.drop_duplicates()
+
+# Finalize
+print(voya_df)
+voya_df.to_csv('voya.csv', sep=',', encoding='utf-8')
