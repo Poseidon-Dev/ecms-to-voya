@@ -1,4 +1,3 @@
-from numpy import dtype, logical_and
 import pyodbc
 import config
 import pandas as pd
@@ -34,13 +33,13 @@ sql = """
         FROM CMSFIL.PRTHST AS HST
         JOIN CMSFIL.PRTMST AS MST
             ON (
-                HST.EMPLOYEENO=MST.EMPLOYEENO and HST.COMPANYNO=MST.COMPANYNO AND MST.EMPLOYEENO = 10703
+                HST.EMPLOYEENO=MST.EMPLOYEENO and HST.COMPANYNO=MST.COMPANYNO
             )
         JOIN CMSFIL.PRTMED AS MED
             ON (
                 MED.CHECKDATE=HST.CHECKDATE AND MED.EMPLOYEENO=HST.EMPLOYEENO
             )
-        WHERE MST.COMPANYNO IN (1,30) AND CAST(HST.CHECKDATE AS INT) > 111111
+        WHERE MST.COMPANYNO IN (1,30) AND CAST(HST.CHECKDATE AS INT) > 100000
         AND MED.DEDNUMBER IN (401, 402, 410, 411)
         """
 
@@ -183,6 +182,9 @@ voya_df['LoanPmt2'] = LoanPmt2
 # Delete duplicate rows
 voya_df = voya_df.drop_duplicates()
 
+# Drop Internal Key
+del voya_df['PRTMSTID']
+
 # Finalize
 print(voya_df)
-voya_df.to_csv('voya.csv', sep=',', encoding='utf-8')
+voya_df.to_csv('voya.csv', sep=',', encoding='utf-8', index=False)
