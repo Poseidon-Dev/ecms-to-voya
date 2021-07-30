@@ -1,3 +1,4 @@
+from numpy import dtype, logical_and
 import pyodbc
 import config
 import pandas as pd
@@ -9,8 +10,8 @@ sql = """
         MST.PRTMSTID,
         CASE WHEN MST.EMPLOYEENO>0 THEN 'INGWIN8' END AS "RECORD_TYPE",
         CASE WHEN MST.EMPLOYEENO>0 THEN 771202 END AS "EMPLOYERID",
-        CASE WHEN MST.EMPLOYEENO>0 THEN 4 END AS "CYCLE", 
-        CAST(MST.SOCIALSECNO AS INT),
+        CASE WHEN MST.EMPLOYEENO>0 THEN 4 END AS "CYCLE",
+        CAST(MST.SOCIALSECNO AS VARCHAR(9)),
         CASE WHEN MST.COMPANYNO = 1 THEN '0001' WHEN MST.COMPANYNO = 30 THEN '0002' END AS "LOCATION_CODE",
         TRIM(MST.LASTEMPNAME),
         TRIM(MST.FIRSTEMPNAME), 
@@ -33,7 +34,7 @@ sql = """
         FROM CMSFIL.PRTHST AS HST
         JOIN CMSFIL.PRTMST AS MST
             ON (
-                HST.EMPLOYEENO=MST.EMPLOYEENO and HST.COMPANYNO=MST.COMPANYNO
+                HST.EMPLOYEENO=MST.EMPLOYEENO and HST.COMPANYNO=MST.COMPANYNO AND MST.EMPLOYEENO = 10703
             )
         JOIN CMSFIL.PRTMED AS MED
             ON (
@@ -44,7 +45,7 @@ sql = """
         """
 
 # Quarterly Query
-quarter_filter_input = '2013Q1'
+quarter_filter_input = '2021Q1'
 if not quarter_filter_input:
     quarter_filter_input = input('Enter a Year and Period(2020Q1): ')
 
@@ -75,11 +76,13 @@ group = [
 quarter_filter = data['Period'] == quarter_filter_input
 voya_df = data[quarter_filter]
 
+# Ensure that necessary columns are strings
+voya_df['SSN'] = voya_df['SSN'].astype('str').apply(lambda x: '{0:0>9}'.format(x))
+
 # Create subset that has deductions per quarter from main filtered set and add column to main df
 data_subset = voya_df[['PRTMSTID', 'Period', 'DedNo', 'DedAmt']]
 deduction_subset = data_subset.groupby(['PRTMSTID', 'Period', 'DedNo']).transform('sum')
 voya_df['ContributionAmount'] = deduction_subset
-
 
 # Create a subset that has hours per quarter from main filtered set and add column to main df
 data_subset = voya_df[['PRTMSTID', 'Period', 'DedNo', 'TotHrs']]
