@@ -7,6 +7,7 @@ name = "pypi"
 pyodbc = "*"
 psycopg2 = "*"
 pandas = "*"
+pysftp = "*"
 
 [dev-packages]
 

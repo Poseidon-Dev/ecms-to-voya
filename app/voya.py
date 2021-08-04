@@ -9,7 +9,7 @@ def collect_voya_data():
     transmission_year = int(date(date.today().year, 1, 1).strftime(date_format))
     transmission_date = int(date.today().strftime(date_format))
 
-    transmission_date = 20210625
+    transmission_date = 20210730
 
     # Connect to eCMS
     erp_conn = pyodbc.connect(f'DSN={app.config.ERP_HOST}; UID={app.config.ERP_UID}; PWD={app.config.ERP_PWD}')
@@ -158,7 +158,7 @@ def collect_voya_data():
     voya_df = voya_df.drop_duplicates()
 
     # Keep relevant rows
-    voya_final = voya_df[voya_df['Period'] == transmission_date]
+    voya_final = voya_df[voya_df['Period'].isin([transmission_date, transmission_date-1])]
 
     # Drop Internal Key
     del voya_final['PRTMSTID']

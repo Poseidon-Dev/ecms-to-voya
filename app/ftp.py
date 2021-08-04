@@ -1,18 +1,17 @@
 from ftplib import FTP
-from pathlib import Path
+import pysftp
 import app.config
 
 def send_file(file_name):
-    with FTP() as ftp:
-        ftp.connect(app.config.FTP_SERVER, app.config.FTP_PORT)
-        ftp.login(app.config.FTP_USR, app.config.FTP_PWD)
-        ftp.cwd(app.config.FTP_PATH)
+    with pysftp.Connection(
+        host=app.config.FTP_SERVER,
+        port=app.config.FTP_PORT,
+        username=app.config.FTP_USR,
+        password=app.config.FTP_PWD,
+        private_key=app.config.FTP_SSH,
+        ) as sftp:
 
-        try:
-            file = open(f'C:/Apps/voya/dumps/{file_name}', 'rb')
-            ftp.storbinary(f'STOR {file_name}', file)
-            print('File sent')
-            file.close()
-        except Exception as e:
-            print(e)
-        
+        with sftp.cd(app.config.FTP_PATH):
+            sftp.put(f'C:/Apps/voya/dumps/{file_name}')
+            print('File dumped')
+
