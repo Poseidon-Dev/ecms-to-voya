@@ -1,5 +1,5 @@
 import pyodbc
-import config
+import app.config
 import pandas as pd
 
 from datetime import date
@@ -12,7 +12,7 @@ def collect_voya_data():
     transmission_date = 20210625
 
     # Connect to eCMS
-    erp_conn = pyodbc.connect(f'DSN={config.ERP_HOST}; UID={config.ERP_UID}; PWD={config.ERP_PWD}')
+    erp_conn = pyodbc.connect(f'DSN={app.config.ERP_HOST}; UID={app.config.ERP_UID}; PWD={app.config.ERP_PWD}')
     sql = f"""
             SELECT 
             MST.PRTMSTID,
@@ -164,6 +164,7 @@ def collect_voya_data():
     del voya_final['PRTMSTID']
 
     # Finalize
-    file_name = f'{transmission_date}voya.csv'
-    voya_final.to_csv(file_name, sep=',', encoding='utf-8', index=False)
+    file_name = f'{transmission_date}.csv'
+    voya_final.to_csv(f'dumps/{file_name}', sep=',', encoding='utf-8', index=False)
+    print('Collected Data')
     return file_name
