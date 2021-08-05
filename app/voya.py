@@ -9,7 +9,7 @@ def collect_voya_data():
     transmission_year = int(date(date.today().year, 1, 1).strftime(date_format))
     transmission_date = int(date.today().strftime(date_format))
 
-    transmission_date = 20210730
+    transmission_date = 20210806
 
     # Connect to eCMS
     erp_conn = pyodbc.connect(f'DSN={app.config.ERP_HOST}; UID={app.config.ERP_UID}; PWD={app.config.ERP_PWD}')
@@ -22,18 +22,18 @@ def collect_voya_data():
             LEFT(MST.SOCIALSECNO, 3),
             CASE WHEN MST.COMPANYNO = 1 THEN 1 WHEN MST.COMPANYNO = 30 THEN 2 END AS "LOCATION_CODE",
             TRIM(MST.LASTEMPNAME),
-            TRIM(MST.FIRSTEMPNAME), 
-            LEFT(TRIM(MST.MIDDLENAME1), 1), 
-            TRIM(MST.ADDR1), 
-            TRIM(MST.ADDR2), 
-            TRIM(MST.CITY), 
-            MST.STATECODE, 
+            TRIM(MST.FIRSTEMPNAME),
+            LEFT(TRIM(MST.MIDDLENAME1), 1),
+            TRIM(MST.ADDR1),
+            TRIM(MST.ADDR2),
+            TRIM(MST.CITY),
+            MST.STATECODE,
             TRIM(MST.ZIPCODE),
             CASE WHEN MST.STATUSCODE = 'I' THEN 'T' WHEN MST.STATUSCODE = 'A' THEN 'A' END AS "EMPLOYEE_STATUS_CODE",
-            CASE WHEN MST.BIRTHDATE IS NULL THEN '0' ELSE CAST(MST.BIRTHDATE AS INT) END, 
-            CASE WHEN MST.ORIGHIREDATE IS NULL THEN '0' ELSE CAST(MST.ORIGHIREDATE AS INT) END, 
-            CASE WHEN MST.TERMDATE IS NULL THEN '0' ELSE CAST(MST.TERMDATE AS INT) END, 
-            CASE WHEN MST.ADJHIREDATE IS NULL THEN '0' ELSE CAST(MST.ADJHIREDATE AS INT) END,   
+            CASE WHEN MST.BIRTHDATE IS NULL THEN '0' ELSE CAST(MST.BIRTHDATE AS INT) END,
+            CASE WHEN MST.ORIGHIREDATE IS NULL THEN '0' ELSE CAST(MST.ORIGHIREDATE AS INT) END,
+            CASE WHEN MST.TERMDATE IS NULL THEN '0' ELSE CAST(MST.TERMDATE AS INT) END,
+            CASE WHEN MST.ADJHIREDATE IS NULL THEN '0' ELSE CAST(MST.ADJHIREDATE AS INT) END,
             MST.EMPLOYEENO,
             CAST(HST.CHECKDATE AS INT),
             HST.REGHRS + HST.OVTHRS + HST.OTHHRS,
