@@ -19,9 +19,9 @@ def collect_voya_data():
 
     transmission_year = date_to_int(transmission_year)
     transmission_end_date = date_to_int(transmission_end_date)
+    transmission_end_date = 20210806
     transmission_start_date = date_to_int(transmission_start_date)
 
-    
     # Connect to eCMS
     erp_conn = pyodbc.connect(f'DSN={app.config.ERP_HOST}; UID={app.config.ERP_UID}; PWD={app.config.ERP_PWD}')
     sql = f"""
@@ -114,7 +114,6 @@ def collect_voya_data():
 
     # Makes salaried a flat amount based on weeks within year
     voya_df.loc[voya_df['PayType'] == 'S', 'YTDHours'] = weeks_in_year * 40
-
 
     # Remove extra columns that add unneeded detail
     del voya_df['DedAmt']
