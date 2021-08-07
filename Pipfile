@@ -8,6 +8,11 @@ pyodbc = "*"
 psycopg2 = "*"
 pandas = "*"
 pysftp = "*"
+paramiko = "*"
+pgpy = "*"
+rsa = "*"
+cryptography = "*"
+python-gnupg = "*"
 
 [dev-packages]
 

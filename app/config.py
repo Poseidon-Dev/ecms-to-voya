@@ -1,4 +1,7 @@
 import os
+import base64
+
+TESTING = True
 
 ERP_HOST = os.getenv('ERP_HOST')
 ERP_UID = os.getenv('ERP_UID')
@@ -9,4 +12,8 @@ FTP_PORT=int(os.getenv('FTP_PORT'))
 FTP_USR=os.getenv('FTP_USR')
 FTP_PWD=os.getenv('FTP_PWD')
 FTP_PATH=os.getenv('FTP_PATH')
-FTP_SSH=os.getenv('FTP_SSH')
+
+GPG_PATH='C:/Apps/GnuPG/gpg.exe'
+GPG_HOME='C:/Apps/voya/pgp'
+GPG_KEY=os.getenv('GPG_KEY')
+GPG_FINGERPRINT=os.getenv('GPG_FINGERPRINT')

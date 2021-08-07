@@ -2,16 +2,23 @@ from ftplib import FTP
 import pysftp
 import app.config
 
-def send_file(file_name):
-    with pysftp.Connection(
-        host=app.config.FTP_SERVER,
-        port=app.config.FTP_PORT,
-        username=app.config.FTP_USR,
-        password=app.config.FTP_PWD,
-        private_key=app.config.FTP_SSH,
-        ) as sftp:
+def send_to_sftp(filename):
+    import paramiko
 
-        with sftp.cd(app.config.FTP_PATH):
-            sftp.put(f'C:/Apps/voya/dumps/{file_name}')
-            print('File dumped')
+    if app.config.TESTING:
+        in_directory = 'testin'
+        out_directory = 'testout'
+    else:
+        in_directory = 'incoming'
+        out_directory = 'outgoing'
 
+    path = f'C:/Apps/voya/dumps/{filename}.encrypted'
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(app.config.FTP_SERVER, app.config.FTP_PORT, app.config.FTP_USR, app.config.FTP_PWD)
+        sftp = ssh.open_sftp()
+        sftp.chdir(in_directory)
+        sftp.put(path, f'{filename}.encrypted')
+    except Exception as e:
+        print(e)
