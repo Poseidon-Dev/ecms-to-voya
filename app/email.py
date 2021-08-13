@@ -8,7 +8,7 @@ def send_email(subject, message):
     smtp_server = app.config.EMAIL_SMTP
     sender = app.config.EMAIL_UID
     password = app.config.EMAIL_PWD
-    recipient = ['jwhitworth@arizonapipeline.com']
+    recipient = ['voyatransmission@arizonapipeline.com']
 
     msg = EmailMessage()
     msg['Subject'] = subject

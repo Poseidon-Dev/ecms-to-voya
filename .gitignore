@@ -1,5 +1,6 @@
 *.csv
 dumps
+*.bat
 
 *.pub
 *.txt
