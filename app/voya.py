@@ -4,6 +4,22 @@ import pandas as pd
 
 from datetime import date, timedelta
 
+import time
+
+class Timer:
+
+    def __init__(self, name=None):
+        self._start_time = None
+        self.name = name
+    
+    def start(self):
+        self._start_time = time.perf_counter()
+
+    def stop(self):
+        elapsed_time = time.perf_counter() - self._start_time
+        self._start_time = None
+        print(f'{self.name} | Elapsed time: {elapsed_time:0.4f} seconds')
+
 def date_to_int(date):
     date_format = '%Y%m%d'
     return int(date.strftime(date_format))
@@ -12,15 +28,17 @@ def collect_voya_data():
     
     # Set to run on a Monday to collect previous Saturday through Tuesday
     transmission_year = date(date.today().year, 1, 1)
-    transmission_end_date = date.today() - timedelta(2)
+    transmission_end_date = date.today() - timedelta(3)
+    from_annual = date_to_int(transmission_end_date - timedelta(365))
     transmission_start_date = transmission_end_date - timedelta(4)
 
     weeks_in_year = abs(transmission_end_date - transmission_year).days//7
 
     transmission_year = date_to_int(transmission_year)
     transmission_end_date = date_to_int(transmission_end_date)
-    transmission_end_date = 20210806
     transmission_start_date = date_to_int(transmission_start_date)
+    transmission_end_date = 20210813
+    transmission_start_date = 20210810
 
     # Connect to eCMS
     erp_conn = pyodbc.connect(f'DSN={app.config.ERP_HOST}; UID={app.config.ERP_UID}; PWD={app.config.ERP_PWD}')
@@ -30,7 +48,7 @@ def collect_voya_data():
             CASE WHEN MST.EMPLOYEENO>0 THEN 'INGWIN8' END AS "RECORD_TYPE",
             CASE WHEN MST.EMPLOYEENO>0 THEN 771202 END AS "EMPLOYERID",
             CASE WHEN MST.EMPLOYEENO>0 THEN 7 END AS "CYCLE",
-            LEFT(MST.SOCIALSECNO, 3),
+            CAST(MST.SOCIALSECNO AS INTEGER) AS SSN,
             CASE WHEN MST.COMPANYNO = 1 THEN 1 WHEN MST.COMPANYNO = 30 THEN 2 END AS "LOCATION_CODE",
             TRIM(MST.LASTEMPNAME),
             TRIM(MST.FIRSTEMPNAME),
@@ -69,9 +87,104 @@ def collect_voya_data():
             AND MED.DEDNUMBER IN (401, 402, 410, 411)
             """
 
-    # Write SQL Return to datafra,e
-    voya_df = pd.read_sql(sql, erp_conn)
+    sql2 = f"""
+        SELECT 
+        MST.PRTMSTID,
+        CASE WHEN MST.EMPLOYEENO>0 THEN 'INGWIN8' END AS "RECORD_TYPE",
+        CASE WHEN MST.EMPLOYEENO>0 THEN 771202 END AS "EMPLOYERID",
+        CASE WHEN MST.EMPLOYEENO>0 THEN 7 END AS "CYCLE",
+        CAST(HST.CHECKDATE AS INT) AS "PERIOD",
+        MST.SOCIALSECNO as "SSN",
+        CASE WHEN MST.COMPANYNO = 1 THEN 1 WHEN MST.COMPANYNO = 30 THEN 2 END AS "LOCATION_CODE",
+        TRIM(MST.LASTEMPNAME) AS "LAST_NAME",
+        TRIM(MST.FIRSTEMPNAME) AS "FIRST_NAME",
+        LEFT(TRIM(MST.MIDDLENAME1), 1) AS "MI",
+        TRIM(MST.ADDR1) AS "ADDR1",
+        TRIM(MST.ADDR2) AS "ADDR2",
+        TRIM(MST.CITY) AS "CITY",
+        MST.STATECODE AS "STATE",
+        TRIM(MST.ZIPCODE) AS "ZIP",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "ZIP2",
+        CASE WHEN MST.STATUSCODE = 'I' THEN 'T' WHEN MST.STATUSCODE = 'A' THEN 'A' END AS "EMPLOYEE_STATUS_CODE",
+        CASE WHEN MST.BIRTHDATE IS NULL THEN '' ELSE CAST(MST.BIRTHDATE AS INT) END AS "BIRTHDATE",
+        CASE WHEN MST.ORIGHIREDATE IS NULL THEN '' ELSE CAST(MST.ORIGHIREDATE AS INT) END AS "HIREDATE",
+        CASE WHEN MST.TERMDATE IS NULL THEN '' ELSE CAST(MST.TERMDATE AS INT) END AS "TERMDATE",
+        CASE WHEN MST.ADJHIREDATE IS NULL THEN '' ELSE CAST(MST.ADJHIREDATE AS INT) END AS "ADJHIREDATE",
+        SUBHST.YTDHOURS,
+        (HST.REGHRS + HST.OVTHRS + HST.OTHHRS) AS "PERIODHOURS",
+        ANNHST.ANNUALHOURS AS "ANNUALHOURS",
+        'A' AS "SOURCECODE1",
+        CASE WHEN SUB401k.DEDNUMBER IN (401, 402) THEN CAST(SUB401k.DEDUCTIONAMT AS DECIMAL(10,2)) END AS "CONTAMOUNT1",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "SOURCECODE2",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "CONTAMOUNT2",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "SOURCECODE4",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "CONTAMOUNT3",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "SOURCECODE4",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "CONTAMOUNT4",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "SOURCECODE5",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "CONTAMOUNT5",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "SOURCECODE6",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "CONTAMOUNT6",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANNUMBER1",
+        CASE WHEN SUB410k.DEDNUMBER IN (410, 411) THEN CAST(SUB410k.DEDUCTIONAMT AS DECIMAL(10,2)) END AS "LOANPMT1",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANNUMBER2",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANPMT2",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANNUMBER3",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANPMT3",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANNUMBER4",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANPMT4",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANNUMBER5",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANPMT5",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANNUMBER6",
+        CASE WHEN MST.EMPLOYEENO > 0 THEN '' ELSE '' END AS "LOANPMT6",
+        MST.EMPLOYEENO AS "EMPLOYEENO"
+        FROM CMSFIL.PRTHST AS HST
+        JOIN CMSFIL.PRTMST AS MST
+            ON (HST.EMPLOYEENO=MST.EMPLOYEENO and HST.COMPANYNO=MST.COMPANYNO)
+        INNER JOIN  
+                (SELECT HST.COMPANYNO, HST.EMPLOYEENO, SUM(HST.REGHRS + HST.OVTHRS + HST.OTHHRS) AS "YTDHOURS"
+                FROM CMSFIL.PRTHST AS HST
+                WHERE CAST(HST.CHECKDATE AS INT) BETWEEN {transmission_year} AND {transmission_end_date}
+                AND HST.COMPANYNO IN (1,30)
+                GROUP BY HST.COMPANYNO, HST.EMPLOYEENO) 
+                AS SUBHST
+            ON (SUBHST.EMPLOYEENO=MST.EMPLOYEENO AND SUBHST.COMPANYNO=MST.COMPANYNO)
+        INNER JOIN  
+                (SELECT HST.COMPANYNO, HST.EMPLOYEENO, SUM(HST.REGHRS + HST.OVTHRS + HST.OTHHRS) AS "ANNUALHOURS"
+                FROM CMSFIL.PRTHST AS HST
+                WHERE CAST(HST.CHECKDATE AS INT) BETWEEN {from_annual} AND {transmission_end_date}
+                AND HST.COMPANYNO IN (1,30)
+                GROUP BY HST.COMPANYNO, HST.EMPLOYEENO) 
+                AS ANNHST
+            ON (ANNHST.EMPLOYEENO=MST.EMPLOYEENO AND ANNHST.COMPANYNO=MST.COMPANYNO)
+        INNER JOIN
+                (SELECT MED.COMPANYNO, MED.EMPLOYEENO, MED.CHECKDATE, MED.DEDNUMBER, SUM(MED.DEDUCTIONAMT) AS "DEDUCTIONAMT"
+                FROM CMSFIL.PRTMED AS MED
+                WHERE CAST(MED.CHECKDATE AS INT) BETWEEN {transmission_start_date} AND {transmission_end_date}
+                AND MED.COMPANYNO IN (1,30)
+                AND MED.DEDNUMBER IN (401, 402)
+                GROUP BY MED.COMPANYNO, MED.EMPLOYEENO, MED.CHECKDATE, MED.DEDNUMBER
+                ) AS SUB401k
+            ON (SUB401k.COMPANYNO = MST.COMPANYNO AND SUB401k.EMPLOYEENO=SUBHST.EMPLOYEENO)
+        INNER JOIN
+                (SELECT MED.COMPANYNO, MED.EMPLOYEENO, MED.CHECKDATE, MED.DEDNUMBER, SUM(MED.DEDUCTIONAMT) AS "DEDUCTIONAMT"
+                FROM CMSFIL.PRTMED AS MED
+                WHERE CAST(MED.CHECKDATE AS INT) BETWEEN {transmission_start_date} AND {transmission_end_date}
+                AND MED.COMPANYNO IN (1,30)
+                AND MED.DEDNUMBER IN (410, 411)
+                GROUP BY MED.COMPANYNO, MED.EMPLOYEENO, MED.CHECKDATE, MED.DEDNUMBER
+                ) AS SUB410k
+            ON (SUB410k.COMPANYNO = MST.COMPANYNO AND SUB410k.EMPLOYEENO=SUBHST.EMPLOYEENO)
+        WHERE MST.COMPANYNO IN (1,30) 
+        AND CAST(HST.CHECKDATE AS INT) between {transmission_year} AND {transmission_end_date}
+        """
 
+    # Write SQL Return to dataframe
+
+    sql_t = Timer('SQL TIMER')
+    sql_t.start()
+    voya_df = pd.read_sql(sql, erp_conn)
+ 
     # Rename all Columns
     columns = [
         'PRTMSTID', 'RecordType', 'EmployerID', 'PayrollCycle', 'SSN',
@@ -195,4 +308,5 @@ def collect_voya_data():
     file_name = f'{transmission_end_date}.csv'
     voya_final.to_csv(f'dumps/{file_name}', float_format='%.2f', sep=',', encoding='utf-8', index=False)
     print('Collected Data')
+    sql_t.stop()
     return file_name
