@@ -18,7 +18,7 @@ class Timer:
     def stop(self):
         elapsed_time = time.perf_counter() - self._start_time
         self._start_time = None
-        print(f'{self.name} | Elapsed time: {elapsed_time:0.4f} seconds')
+        return f'{self.name} | Elapsed time: {elapsed_time:0.4f} seconds'
 
 def date_to_int(date):
     date_format = '%Y%m%d'
@@ -28,7 +28,7 @@ def collect_voya_data():
     
     # Set to run on a Monday to collect previous Saturday through Tuesday
     transmission_year = date(date.today().year, 1, 1)
-    transmission_end_date = date.today() - timedelta(3)
+    transmission_end_date = date.today() - timedelta(2)
     from_annual = date_to_int(transmission_end_date - timedelta(365))
     transmission_start_date = transmission_end_date - timedelta(4)
 
@@ -37,8 +37,8 @@ def collect_voya_data():
     transmission_year = date_to_int(transmission_year)
     transmission_end_date = date_to_int(transmission_end_date)
     transmission_start_date = date_to_int(transmission_start_date)
-    transmission_end_date = 20210813
-    transmission_start_date = 20210810
+    # transmission_end_date = 20210813
+    # transmission_start_date = 20210810
 
     # Connect to eCMS
     erp_conn = pyodbc.connect(f'DSN={app.config.ERP_HOST}; UID={app.config.ERP_UID}; PWD={app.config.ERP_PWD}')

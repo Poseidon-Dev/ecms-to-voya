@@ -1,7 +1,7 @@
 import os
 import base64
 
-TESTING = True
+TESTING = False
 
 ERP_HOST = os.getenv('ERP_HOST')
 ERP_UID = os.getenv('ERP_UID')

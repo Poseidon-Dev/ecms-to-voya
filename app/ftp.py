@@ -19,6 +19,6 @@ def send_to_sftp(filename):
         ssh.connect(app.config.FTP_SERVER, app.config.FTP_PORT, app.config.FTP_USR, app.config.FTP_PWD)
         sftp = ssh.open_sftp()
         sftp.chdir(in_directory)
-        sftp.put(path, f'{filename}.pgp')
+        sftp.put(path, f'771202_{filename}.pgp')
     except Exception as e:
         print(e)
